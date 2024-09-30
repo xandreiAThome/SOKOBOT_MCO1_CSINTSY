@@ -1,1 +1,3 @@
 javac src/main/Driver.java src/gui/*.java src/reader/*.java src/solver/*.java -d out/ -cp out
+
+java -classpath out main.Driver <map-filename-only> <run-mode>
