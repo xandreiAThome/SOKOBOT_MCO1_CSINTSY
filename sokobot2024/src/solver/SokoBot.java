@@ -9,7 +9,7 @@ public class SokoBot {
     /*
      * Default stupid behavior: Think (sleep) for 3 seconds, and then return a
      * sequence
-     * that just moves left and right repeatedly.
+     * that just moves left and right repeatedly. test
      */
     try {
       Thread.sleep(3000);
