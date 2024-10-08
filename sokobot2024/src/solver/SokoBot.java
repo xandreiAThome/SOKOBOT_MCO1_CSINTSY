@@ -32,6 +32,19 @@ public class SokoBot {
     PlayerPos playerCoord = getPlayerCoord(itemsData, boxesCoord);
     ArrayList<int[]> goalsCoord = getGoalsCoord(mapData);
 
+    String moves = BFS(mapData, playerCoord, goalsCoord);
+    return moves;
+
+  }
+
+  /**
+   * 
+   * @param mapData
+   * @param playerCoord
+   * @param goalsCoord
+   * @return
+   */
+  public String BFS(char[][] mapData, PlayerPos playerCoord, ArrayList<int[]> goalsCoord) {
     boolean finished = false;
     List<PlayerPos> visited = new ArrayList<>();
     visited.add(playerCoord);
