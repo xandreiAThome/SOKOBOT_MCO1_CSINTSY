@@ -16,6 +16,7 @@ public class FileReader {
 
     try {
       File file = new File("maps/" + keyword + ".txt");
+      // File file = new File("sokobot2024\\maps\\1box.txt");
       Scanner scanner = new Scanner(file);
       while (scanner.hasNext()) {
         String nextLine = scanner.nextLine();

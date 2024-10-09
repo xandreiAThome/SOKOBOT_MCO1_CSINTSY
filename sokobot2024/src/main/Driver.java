@@ -15,6 +15,7 @@ public class Driver {
     String mode = args[1];
 
     FileReader fileReader = new FileReader();
+    // MapData mapData = fileReader.readFile("/twoboxes2");
     MapData mapData = fileReader.readFile(mapName);
 
     GameFrame gameFrame = new GameFrame(mapData);
