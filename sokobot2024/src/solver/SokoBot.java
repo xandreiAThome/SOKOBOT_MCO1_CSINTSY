@@ -1,6 +1,8 @@
 package solver;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 // XY plane starts from the topmost left and starts at 0
 /*
@@ -11,6 +13,7 @@ import java.util.List;
  * 3
  * Y
  */
+import java.util.Queue;
 
 public class SokoBot {
   final int[] UP = { 0, -1 };
@@ -28,11 +31,12 @@ public class SokoBot {
      * that just moves left and right repeatedly.
      */
 
-    ArrayList<BoxPos> boxesCoord = getBoxesCoord(itemsData);
-    PlayerPos playerCoord = getPlayerCoord(itemsData, boxesCoord);
-    ArrayList<int[]> goalsCoord = getGoalsCoord(mapData);
+    HashSet<Point> boxesCoord = getBoxesCoord(itemsData);
+    Point playerCoord = getPlayerCoord(itemsData);
+    HashSet<Point> goalsCoord = getGoalsCoord(mapData);
+    BoardState initState = new BoardState(playerCoord, boxesCoord, ' ', null);
 
-    String moves = BFS(mapData, playerCoord, goalsCoord);
+    String moves = BFS(mapData, initState, goalsCoord);
     return moves;
 
   }
@@ -40,89 +44,46 @@ public class SokoBot {
   /**
    * 
    * @param mapData
-   * @param playerCoord
+   * @param initNode
    * @param goalsCoord
    * @return
    */
-  public String BFS(char[][] mapData, PlayerPos playerCoord, ArrayList<int[]> goalsCoord) {
-    boolean finished = false;
-    List<PlayerPos> visited = new ArrayList<>();
-    visited.add(playerCoord);
+  public String BFS(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
+    HashSet<BoardState> visited = new HashSet<>();
+    Queue<BoardState> availMoves = new LinkedList<>();
+    availMoves.add(initState);
 
-    while (!finished) {
-      List<PlayerPos> availMoves = new ArrayList<>();
-      for (int i = 0; i < visited.size(); ++i) {
-        PlayerPos playerPos = visited.get(i);
-        for (PlayerPos neighbor : getNeighbors(mapData, playerPos)) {
-          if (!posIsIn(visited, neighbor) && !posIsIn(availMoves, neighbor) &&
-              !neighbor.isDeadLock(mapData, goalsCoord)) {
-            availMoves.add(neighbor);
+    while (!availMoves.isEmpty()) {
+      BoardState currState = availMoves.poll();
+      visited.add(currState);
+
+      for (BoardState n : getNeighbors(mapData, currState)) {
+        if (!visited.contains(n) && !availMoves.contains(n)) {
+          if (n.boxesIsOnGoal(goalsCoord)) {
+            return getSolution(n);
+          } else if (!n.isDeadLock(mapData, goalsCoord)) {
+            availMoves.add(n);
           }
         }
       }
-
-      for (PlayerPos playerPos : availMoves) {
-        visited.add(playerPos);
-
-        boolean boxesGoal[] = new boolean[playerPos.getBoxesPos().size()];
-        for (int i = 0; i < boxesGoal.length; i++) {
-          boxesGoal[i] = false;
-        }
-
-        int i = 0;
-        for (BoxPos box : playerPos.getBoxesPos()) {
-          boolean boxInGoal = false;
-          for (int[] goal : goalsCoord) {
-            if (box.getX() == goal[0] && box.getY() == goal[1])
-              boxInGoal = true;
-          }
-          boxesGoal[i] = boxInGoal;
-          i++;
-        }
-
-        boolean goalAchieved = true;
-        for (boolean b : boxesGoal) {
-          if (!b) {
-            goalAchieved = b;
-            break;
-          }
-        }
-
-        if (goalAchieved) {
-          finished = goalAchieved;
-          break;
-        }
-      }
-
-      if (!finished && availMoves.isEmpty())
-        return ""; // no solution found
     }
 
+    System.out.println("No solution");
+    return "";
+
+  }
+
+  public String getSolution(BoardState goalState) {
     String moves = "";
-    PlayerPos point = visited.get(visited.size() - 1);
-    while (point.getPrevPoint() != null) {
-      moves += point.getMove();
-      point = point.getPrevPoint();
+
+    while (goalState.getParent() != null) {
+      moves += goalState.getMove();
+      goalState = goalState.getParent();
     }
+    // reverse because we start getting the moves from the goal to the initial state
     String reverse = new StringBuilder(moves.trim()).reverse().toString();
     System.out.println(reverse);
     return reverse;
-  }
-
-  /**
-   * Checks if the given position is already in the list
-   * 
-   * @param playerPosList
-   * @param pos
-   * @return
-   */
-  public boolean posIsIn(List<PlayerPos> playerPosList, PlayerPos pos) {
-    for (PlayerPos p : playerPosList) {
-      if (p.equals(pos))
-        return true;
-    }
-
-    return false;
   }
 
   /**
@@ -130,12 +91,12 @@ public class SokoBot {
    * @param itemsData
    * @return the player coordinate in an array, returns null if no player found
    */
-  protected PlayerPos getPlayerCoord(char[][] itemsData, ArrayList<BoxPos> boxesCoord) {
-    PlayerPos playerCoord;
+  protected Point getPlayerCoord(char[][] itemsData) {
+    Point playerCoord;
     for (int y = 0; y < itemsData.length; y++) {
       for (int x = 0; x < itemsData[y].length; x++) {
         if (itemsData[y][x] == '@') {
-          playerCoord = new PlayerPos(x, y, null, ' ', boxesCoord);
+          playerCoord = new Point(x, y);
           return playerCoord;
         }
       }
@@ -149,13 +110,13 @@ public class SokoBot {
    * @param itemsData
    * @return the coordinates of all the boxes
    */
-  protected ArrayList<BoxPos> getBoxesCoord(char[][] itemsData) {
-    ArrayList<BoxPos> boxes = new ArrayList<BoxPos>();
+  protected HashSet<Point> getBoxesCoord(char[][] itemsData) {
+    HashSet<Point> boxes = new HashSet<Point>();
 
     for (int y = 0; y < itemsData.length; y++) {
       for (int x = 0; x < itemsData[y].length; x++) {
         if (itemsData[y][x] == '$' || itemsData[y][x] == '*') {
-          boxes.add(new BoxPos(x, y));
+          boxes.add(new Point(x, y));
         }
       }
     }
@@ -167,16 +128,13 @@ public class SokoBot {
    * @param mapData
    * @return the coordinates of all the goal points
    */
-  protected ArrayList<int[]> getGoalsCoord(char[][] mapData) {
-    ArrayList<int[]> goals = new ArrayList<int[]>();
+  protected HashSet<Point> getGoalsCoord(char[][] mapData) {
+    HashSet<Point> goals = new HashSet<Point>();
 
     for (int y = 0; y < mapData.length; y++) {
       for (int x = 0; x < mapData[y].length; x++) {
         if (mapData[y][x] == '.') {
-          int goal[] = new int[2];
-          goal[0] = x;
-          goal[1] = y;
-          goals.add(goal);
+          goals.add(new Point(x, y));
         }
       }
     }
@@ -186,46 +144,52 @@ public class SokoBot {
   /**
    * 
    * @param mapData
-   * @param playerCoord
+   * @param state
    * @return
    */
-  public List<PlayerPos> getNeighbors(char[][] mapData, PlayerPos playerCoord) {
-    List<PlayerPos> neighbors = new ArrayList<>();
-    if (isMoveValid(mapData, UP, playerCoord)) {
-      ArrayList<BoxPos> movedBoxes = moveBoxes(playerCoord, UP);
-      neighbors.add(new PlayerPos(playerCoord.getX() + UP[0], playerCoord.getY() + UP[1], playerCoord, 'u',
-          movedBoxes));
+  public List<BoardState> getNeighbors(char[][] mapData, BoardState state) {
+    List<BoardState> neighbors = new ArrayList<>();
+    Point playerPos = state.getPlayerPos();
+
+    if (isMoveValid(mapData, UP, state)) {
+      HashSet<Point> movedBoxes = moveBoxes(state, UP);
+      Point movedPlayer = new Point(playerPos.getX() + UP[0], playerPos.getY() + UP[1]);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'u', state);
+      neighbors.add(newState);
     }
 
-    if (isMoveValid(mapData, DOWN, playerCoord)) {
-      ArrayList<BoxPos> movedBoxes = moveBoxes(playerCoord, DOWN);
-      neighbors.add(new PlayerPos(playerCoord.getX() + DOWN[0], playerCoord.getY() + DOWN[1], playerCoord, 'd',
-          movedBoxes));
+    if (isMoveValid(mapData, DOWN, state)) {
+      HashSet<Point> movedBoxes = moveBoxes(state, DOWN);
+      Point movedPlayer = new Point(playerPos.getX() + DOWN[0], playerPos.getY() + DOWN[1]);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'd', state);
+      neighbors.add(newState);
     }
 
-    if (isMoveValid(mapData, RIGHT, playerCoord)) {
-      ArrayList<BoxPos> movedBoxes = moveBoxes(playerCoord, RIGHT);
-      neighbors.add(new PlayerPos(playerCoord.getX() + RIGHT[0], playerCoord.getY() + RIGHT[1], playerCoord, 'r',
-          movedBoxes));
+    if (isMoveValid(mapData, RIGHT, state)) {
+      HashSet<Point> movedBoxes = moveBoxes(state, RIGHT);
+      Point movedPlayer = new Point(playerPos.getX() + RIGHT[0], playerPos.getY() + RIGHT[1]);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'r', state);
+      neighbors.add(newState);
     }
 
-    if (isMoveValid(mapData, LEFT, playerCoord)) {
-      ArrayList<BoxPos> movedBoxes = moveBoxes(playerCoord, LEFT);
-      neighbors.add(new PlayerPos(playerCoord.getX() + LEFT[0], playerCoord.getY() + LEFT[1], playerCoord, 'l',
-          movedBoxes));
+    if (isMoveValid(mapData, LEFT, state)) {
+      HashSet<Point> movedBoxes = moveBoxes(state, LEFT);
+      Point movedPlayer = new Point(playerPos.getX() + LEFT[0], playerPos.getY() + LEFT[1]);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'l', state);
+      neighbors.add(newState);
     }
 
     return neighbors;
   }
 
-  // Makes a deep copy of the boxes arraylist
-  private ArrayList<BoxPos> moveBoxes(PlayerPos playerCoord, int[] move) {
-    ArrayList<BoxPos> boxes = new ArrayList<BoxPos>();
-    for (BoxPos b : playerCoord.getBoxesPos()) {
-      if (b.getX() == playerCoord.getX() + move[0] && b.getY() == playerCoord.getY() + move[1]) {
-        boxes.add(new BoxPos(b.getX() + move[0], b.getY() + move[1]));
+  private HashSet<Point> moveBoxes(BoardState state, int[] move) {
+    HashSet<Point> boxes = new HashSet<Point>();
+    Point playerPos = state.getPlayerPos();
+    for (Point b : state.getBoxesPos()) {
+      if (b.getX() == playerPos.getX() + move[0] && b.getY() == playerPos.getY() + move[1]) {
+        boxes.add(new Point(b.getX() + move[0], b.getY() + move[1]));
       } else {
-        boxes.add(new BoxPos(b));
+        boxes.add(new Point(b.getX(), b.getY()));
       }
     }
 
@@ -240,17 +204,17 @@ public class SokoBot {
    * @param playerCoord
    * @return
    */
-  private boolean isMoveValid(char[][] mapData, int[] move, PlayerPos playerCoord) {
-    int x = playerCoord.getX() + move[0];
-    int y = playerCoord.getY() + move[1];
+  private boolean isMoveValid(char[][] mapData, int[] move, BoardState state) {
+    int x = state.getPlayerPos().getX() + move[0];
+    int y = state.getPlayerPos().getY() + move[1];
 
     if (mapData[y][x] == '#')
       return false;
 
-    BoxPos movedBox = null;
-    for (BoxPos b : playerCoord.getBoxesPos()) {
+    Point movedBox = null;
+    for (Point b : state.getBoxesPos()) {
       if (b.getX() == x && b.getY() == y) {
-        movedBox = new BoxPos(b.getX() + move[0], b.getY() + move[1]);
+        movedBox = new Point(b.getX() + move[0], b.getY() + move[1]);
         break;
       }
     }
@@ -259,7 +223,7 @@ public class SokoBot {
       if (mapData[movedBox.getY()][movedBox.getX()] == '#')
         return false;
 
-      for (BoxPos b : playerCoord.getBoxesPos()) {
+      for (Point b : state.getBoxesPos()) {
         if (b.getX() == movedBox.getX() && b.getY() == movedBox.getY()) {
           return false;
         }
