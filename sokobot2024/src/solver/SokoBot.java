@@ -1,9 +1,11 @@
 package solver;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.PriorityQueue;
 // XY plane starts from the topmost left and starts at 0
 /*
  * example
@@ -14,6 +16,8 @@ import java.util.List;
  * Y
  */
 import java.util.Queue;
+
+import org.w3c.dom.Node;
 
 public class SokoBot {
   final int[] UP = { 0, -1 };
@@ -36,7 +40,7 @@ public class SokoBot {
     HashSet<Point> goalsCoord = getGoalsCoord(mapData);
     BoardState initState = new BoardState(playerCoord, boxesCoord, ' ', null);
 
-    String moves = BFS(mapData, initState, goalsCoord);
+    String moves = UCS(mapData, initState, goalsCoord);
     return moves;
 
   }
@@ -60,6 +64,7 @@ public class SokoBot {
       for (BoardState n : getNeighbors(mapData, currState)) {
         if (!visited.contains(n) && !availMoves.contains(n)) {
           if (n.boxesIsOnGoal(goalsCoord)) {
+            System.out.println(n.getCost());
             return getSolution(n);
           } else if (!n.isDeadLock(mapData, goalsCoord)) {
             availMoves.add(n);
@@ -70,7 +75,6 @@ public class SokoBot {
 
     System.out.println("No solution");
     return "";
-
   }
 
   public String getSolution(BoardState goalState) {
@@ -85,6 +89,50 @@ public class SokoBot {
     System.out.println(reverse);
     return reverse;
   }
+
+  public String UCS(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
+    HashSet<BoardState> visited = new HashSet<>();
+    Queue<BoardState> frontier = new PriorityQueue<BoardState>(10, costComparator);
+    frontier.add(initState);
+
+    while (!frontier.isEmpty()) {
+      BoardState currState = frontier.remove();
+
+      if (currState.boxesIsOnGoal(goalsCoord)) {
+        System.out.println(currState.getCost());
+        return getSolution(currState);
+      } else if (!currState.isDeadLock(mapData, goalsCoord)) {
+        visited.add(currState);
+        for (BoardState neighbor : getNeighbors(mapData, currState)) {
+          if (!visited.contains(neighbor) && !frontier.contains(neighbor)) {
+            frontier.add(neighbor);
+          } else {
+            for (BoardState front : frontier) {
+              // if new move is already in frontier and new move has lesser cost than the
+              // frontier
+              // then replace the frontier with the new move
+              if (front == neighbor) {
+                if (neighbor.getCost() < front.getCost()) {
+                  frontier.remove(front);
+                  frontier.add(neighbor);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    System.out.println("No solution");
+    return "";
+  }
+
+  public static Comparator<BoardState> costComparator = new Comparator<BoardState>() {
+    @Override
+    public int compare(BoardState state1, BoardState state2) {
+      return (int) (state1.getCost() - state2.getCost());
+    }
+  };
 
   /**
    * 

@@ -8,12 +8,23 @@ public class BoardState {
     private HashSet<Point> boxesPos;
     private char move;
     private BoardState parent;
+    private int cost;
 
     public BoardState(Point playerPos, HashSet<Point> boxes, char move, BoardState parent) {
         this.playerPos = playerPos;
         this.boxesPos = boxes;
         this.move = move;
         this.parent = parent;
+
+        if (parent == null) {
+            cost = 0;
+        } else {
+            cost = parent.cost + 1; // depth in the tree
+        }
+    }
+
+    public int getCost() {
+        return cost;
     }
 
     /**
