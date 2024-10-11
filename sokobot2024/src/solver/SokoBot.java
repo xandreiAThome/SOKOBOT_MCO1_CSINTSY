@@ -1,9 +1,7 @@
 package solver;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
+
 // XY plane starts from the topmost left and starts at 0
 /*
  * example
@@ -13,13 +11,14 @@ import java.util.List;
  * 3
  * Y
  */
-import java.util.Queue;
 
 public class SokoBot {
   final int[] UP = { 0, -1 };
   final int[] DOWN = { 0, 1 };
   final int[] LEFT = { -1, 0 };
   final int[] RIGHT = { 1, 0 };
+
+  private HashSet<Point> goalsCoord;
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
     /*
@@ -33,10 +32,11 @@ public class SokoBot {
 
     HashSet<Point> boxesCoord = getBoxesCoord(itemsData);
     Point playerCoord = getPlayerCoord(itemsData);
-    HashSet<Point> goalsCoord = getGoalsCoord(mapData);
-    BoardState initState = new BoardState(playerCoord, boxesCoord, ' ', null);
+    goalsCoord = getGoalsCoord(mapData);
+    BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord,' ', null);
 
-    String moves = BFS(mapData, initState, goalsCoord);
+    //String moves = BFS(mapData, initState, goalsCoord);
+    String moves = Greedy(mapData, initState, goalsCoord);
     return moves;
 
   }
@@ -44,7 +44,6 @@ public class SokoBot {
   /**
    * 
    * @param mapData
-   * @param initNode
    * @param goalsCoord
    * @return
    */
@@ -56,6 +55,44 @@ public class SokoBot {
     while (!availMoves.isEmpty()) {
       BoardState currState = availMoves.poll();
       visited.add(currState);
+
+      for (BoardState n : getNeighbors(mapData, currState)) {
+        if (!visited.contains(n) && !availMoves.contains(n)) {
+          if (n.boxesIsOnGoal(goalsCoord)) {
+            return getSolution(n);
+          } else if (!n.isDeadLock(mapData, goalsCoord)) {
+            availMoves.add(n);
+          }
+        }
+      }
+    }
+
+    System.out.println("No solution");
+    return "";
+
+  }
+
+  /**
+   * Solves the problem via greedy best first search method
+   *
+   * @param mapData
+   * @param initState
+   * @param goalsCoord
+   * @return
+   */
+  public String Greedy(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
+    HashSet<BoardState> visited = new HashSet<>();
+
+    // declare comparator which arranges the priority queue to arrange the BoardStates
+    // with the ones having the least heuristic values as higher priority
+    Comparator<BoardState> comp = new BoardStateComparator();
+    PriorityQueue<BoardState> availMoves = new PriorityQueue<BoardState>(10,comp);
+    availMoves.add(initState);
+
+    while (!availMoves.isEmpty()) {
+      BoardState currState = availMoves.poll();
+      visited.add(currState);
+      //System.out.println("heuristic:" + currState.getHeuristic());
 
       for (BoardState n : getNeighbors(mapData, currState)) {
         if (!visited.contains(n) && !availMoves.contains(n)) {
@@ -154,28 +191,28 @@ public class SokoBot {
     if (isMoveValid(mapData, UP, state)) {
       HashSet<Point> movedBoxes = moveBoxes(state, UP);
       Point movedPlayer = new Point(playerPos.getX() + UP[0], playerPos.getY() + UP[1]);
-      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'u', state);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, goalsCoord, 'u', state);
       neighbors.add(newState);
     }
 
     if (isMoveValid(mapData, DOWN, state)) {
       HashSet<Point> movedBoxes = moveBoxes(state, DOWN);
       Point movedPlayer = new Point(playerPos.getX() + DOWN[0], playerPos.getY() + DOWN[1]);
-      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'd', state);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, goalsCoord, 'd', state);
       neighbors.add(newState);
     }
 
     if (isMoveValid(mapData, RIGHT, state)) {
       HashSet<Point> movedBoxes = moveBoxes(state, RIGHT);
       Point movedPlayer = new Point(playerPos.getX() + RIGHT[0], playerPos.getY() + RIGHT[1]);
-      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'r', state);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes,  goalsCoord,'r', state);
       neighbors.add(newState);
     }
 
     if (isMoveValid(mapData, LEFT, state)) {
       HashSet<Point> movedBoxes = moveBoxes(state, LEFT);
       Point movedPlayer = new Point(playerPos.getX() + LEFT[0], playerPos.getY() + LEFT[1]);
-      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'l', state);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, goalsCoord,'l', state);
       neighbors.add(newState);
     }
 
@@ -200,8 +237,6 @@ public class SokoBot {
    * 
    * @param mapData
    * @param move
-   * @param boxesCoord
-   * @param playerCoord
    * @return
    */
   private boolean isMoveValid(char[][] mapData, int[] move, BoardState state) {
