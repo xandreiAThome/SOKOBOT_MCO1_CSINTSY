@@ -110,7 +110,7 @@ public class SokoBot {
             for (BoardState front : frontier) {
               // if new move is already in frontier and new move has lesser cost than the
               // frontier
-              // then replace the frontier with the new move
+              // then replace the frontier with the new moveg
               if (front == neighbor) {
                 if (neighbor.getCost() < front.getCost()) {
                   frontier.remove(front);
