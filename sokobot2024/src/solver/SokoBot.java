@@ -1,9 +1,7 @@
 package solver;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
+
 // XY plane starts from the topmost left and starts at 0
 /*
  * example
@@ -13,13 +11,14 @@ import java.util.List;
  * 3
  * Y
  */
-import java.util.Queue;
 
 public class SokoBot {
   final int[] UP = { 0, -1 };
   final int[] DOWN = { 0, 1 };
   final int[] LEFT = { -1, 0 };
   final int[] RIGHT = { 1, 0 };
+
+  private HashSet<Point> goalsCoord;
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
     /*
@@ -33,10 +32,12 @@ public class SokoBot {
 
     HashSet<Point> boxesCoord = getBoxesCoord(itemsData);
     Point playerCoord = getPlayerCoord(itemsData);
-    HashSet<Point> goalsCoord = getGoalsCoord(mapData);
-    BoardState initState = new BoardState(playerCoord, boxesCoord, ' ', null);
+    goalsCoord = getGoalsCoord(mapData);
+    BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord,' ', null);
 
-    String moves = BFS(mapData, initState, goalsCoord);
+    //String moves = BFS(mapData, initState, goalsCoord);
+    //String moves = Greedy(mapData, initState, goalsCoord);
+    String moves = AStar(mapData, initState, goalsCoord);
     return moves;
 
   }
@@ -44,7 +45,6 @@ public class SokoBot {
   /**
    * 
    * @param mapData
-   * @param initNode
    * @param goalsCoord
    * @return
    */
@@ -72,6 +72,41 @@ public class SokoBot {
     return "";
 
   }
+
+
+  public String AStar(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
+    HashSet<BoardState> visited = new HashSet<>();
+    PriorityQueue<BoardState> openList = new PriorityQueue<>(new Comparator<BoardState>() {
+        @Override
+        public int compare(BoardState a, BoardState b) {
+            // f(n) = g(n) + h(n)
+            return (a.getPathCost() + a.getEuclideanHeuristic()) - (b.getPathCost() + b.getEuclideanHeuristic());
+        }
+    });
+    
+    openList.add(initState);
+
+    while (!openList.isEmpty()) {
+        BoardState currState = openList.poll();
+        visited.add(currState);
+
+        if (currState.boxesIsOnGoal(goalsCoord)) {
+            return getSolution(currState);
+        }
+
+        for (BoardState neighbor : getNeighbors(mapData, currState)) {
+            if (!visited.contains(neighbor) && !openList.contains(neighbor)) {
+                if (!neighbor.isDeadLock(mapData, goalsCoord)) {
+                    neighbor.setPathCost(currState.getPathCost() + 1);  // g(n) = path cost
+                    openList.add(neighbor);
+                }
+            }
+        }
+    }
+
+    System.out.println("No solution found");
+    return "";
+}
 
   public String getSolution(BoardState goalState) {
     String moves = "";
@@ -154,28 +189,28 @@ public class SokoBot {
     if (isMoveValid(mapData, UP, state)) {
       HashSet<Point> movedBoxes = moveBoxes(state, UP);
       Point movedPlayer = new Point(playerPos.getX() + UP[0], playerPos.getY() + UP[1]);
-      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'u', state);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, goalsCoord, 'u', state);
       neighbors.add(newState);
     }
 
     if (isMoveValid(mapData, DOWN, state)) {
       HashSet<Point> movedBoxes = moveBoxes(state, DOWN);
       Point movedPlayer = new Point(playerPos.getX() + DOWN[0], playerPos.getY() + DOWN[1]);
-      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'd', state);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, goalsCoord, 'd', state);
       neighbors.add(newState);
     }
 
     if (isMoveValid(mapData, RIGHT, state)) {
       HashSet<Point> movedBoxes = moveBoxes(state, RIGHT);
       Point movedPlayer = new Point(playerPos.getX() + RIGHT[0], playerPos.getY() + RIGHT[1]);
-      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'r', state);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes,  goalsCoord,'r', state);
       neighbors.add(newState);
     }
 
     if (isMoveValid(mapData, LEFT, state)) {
       HashSet<Point> movedBoxes = moveBoxes(state, LEFT);
       Point movedPlayer = new Point(playerPos.getX() + LEFT[0], playerPos.getY() + LEFT[1]);
-      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'l', state);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, goalsCoord,'l', state);
       neighbors.add(newState);
     }
 
@@ -200,8 +235,6 @@ public class SokoBot {
    * 
    * @param mapData
    * @param move
-   * @param boxesCoord
-   * @param playerCoord
    * @return
    */
   private boolean isMoveValid(char[][] mapData, int[] move, BoardState state) {
