@@ -11,6 +11,7 @@ public class BoardState {
     private BoardState parent;
     private int cost;
     private int manhattanHeuristic;
+    private int euclideanHeuristic;
 
     public BoardState(Point playerPos, HashSet<Point> boxes, HashSet<Point> goals, char move, BoardState parent) {
         this.playerPos = playerPos;
@@ -25,6 +26,7 @@ public class BoardState {
             cost = parent.cost + 1; // depth in the tree
         }
         manhattanHeuristic = computeManhattanHeuristic();
+        euclideanHeuristic = computeEuclideanHeuristic();
     }
 
     public int getCost() {
@@ -35,8 +37,34 @@ public class BoardState {
         return manhattanHeuristic;
     }
 
+    public int getEuclideanHeuristic() {
+        return euclideanHeuristic;
+    }
+
+    private int computeEuclideanHeuristic() {
+
+        int h = 0;
+        int least;
+        // for all boxes
+        for (Point b : boxesPos) {
+            // for all goals
+            least = 99999999;
+            for (Point g : goalsPos) {
+                int m = (int) Math.sqrt(Math.pow(b.getX() - g.getX(), 2) + Math.pow(b.getY() - g.getY(), 2));
+                // compute the Euclideean distance between box and goal and keep the lowest one
+                if (m < least)
+                    least = m;
+            }
+            h += least;
+        }
+        // return the sum of distances as heuristic
+        return h;
+    }
+
     /**
      *
+     * 
+     * 
      * @return
      */
     private int computeManhattanHeuristic() {
@@ -62,12 +90,15 @@ public class BoardState {
 
     /**
      *
+     * 
+     * 
+     * 
      * @param goalsCoord
      * @return
      */
-    public boolean boxesIsOnGoal(HashSet<Point> goalsCoord) {
+    public boolean boxesIsOnGoal() {
         for (Point box : boxesPos) {
-            if (!goalsCoord.contains(box)) {
+            if (!goalsPos.contains(box)) {
                 return false;
             }
         }
@@ -114,14 +145,14 @@ public class BoardState {
         return boxesPos;
     }
 
-    public boolean isDeadLock(char[][] mapData, HashSet<Point> goalsCoord) {
+    public boolean isDeadLock(char[][] mapData) {
         boolean deadLock = false;
         HashSet<Character> invalid = new HashSet<>();
         invalid.add('#');
         invalid.add('$');
         for (Point b : boxesPos) {
             // if box is on goal
-            if (goalsCoord.contains(b)) {
+            if (goalsPos.contains(b)) {
                 continue;
             } else {
                 // for top left of the box

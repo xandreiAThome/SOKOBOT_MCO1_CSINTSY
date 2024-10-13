@@ -35,9 +35,9 @@ public class SokoBot {
     goalsCoord = getGoalsCoord(mapData);
     BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord, ' ', null);
 
-    // String moves = BFS(mapData, initState, goalsCoord);
-    String moves = manhattanAstar(mapData, initState, goalsCoord);
-    // String moves = Greedy(mapData, initState, goalsCoord);
+    // String moves = BFS(mapData, initState);
+    // String moves = Astar(mapData, initState, 'm');
+    String moves = Greedy(mapData, initState, 'm');
     return moves;
 
   }
@@ -48,7 +48,7 @@ public class SokoBot {
    * @param goalsCoord
    * @return
    */
-  public String BFS(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
+  public String BFS(char[][] mapData, BoardState initState) {
     HashSet<BoardState> visited = new HashSet<>();
     Queue<BoardState> availMoves = new LinkedList<>();
     availMoves.add(initState);
@@ -59,9 +59,9 @@ public class SokoBot {
 
       for (BoardState n : getNeighbors(mapData, currState)) {
         if (!visited.contains(n) && !availMoves.contains(n)) {
-          if (n.boxesIsOnGoal(goalsCoord)) {
+          if (n.boxesIsOnGoal()) {
             return getSolution(n);
-          } else if (!n.isDeadLock(mapData, goalsCoord)) {
+          } else if (!n.isDeadLock(mapData)) {
             availMoves.add(n);
           }
         }
@@ -74,20 +74,23 @@ public class SokoBot {
   }
 
   /**
-   * Solves the problem via greedy best first search method
-   *
+   * 
    * @param mapData
    * @param initState
    * @param goalsCoord
+   * @param heuristicType e for euclidean, default is manhattan
    * @return
    */
-  public String Greedy(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
+  public String Greedy(char[][] mapData, BoardState initState, char heuristicType) {
     HashSet<BoardState> visited = new HashSet<>();
 
     // declare comparator which arranges the priority queue to arrange the
     // BoardStates
     // with the ones having the least heuristic values as higher priority
     Comparator<BoardState> comp = new ManhattanComparator();
+    if (heuristicType == 'e') {
+      comp = new EuclideanComparator();
+    }
     PriorityQueue<BoardState> availMoves = new PriorityQueue<BoardState>(10, comp);
     availMoves.add(initState);
 
@@ -98,9 +101,9 @@ public class SokoBot {
 
       for (BoardState n : getNeighbors(mapData, currState)) {
         if (!visited.contains(n) && !availMoves.contains(n)) {
-          if (n.boxesIsOnGoal(goalsCoord)) {
+          if (n.boxesIsOnGoal()) {
             return getSolution(n);
-          } else if (!n.isDeadLock(mapData, goalsCoord)) {
+          } else if (!n.isDeadLock(mapData)) {
             availMoves.add(n);
           }
         }
@@ -126,19 +129,29 @@ public class SokoBot {
     return reverse;
   }
 
-  // A* uses the same algorithm as UCS only with heuristic
-  public String manhattanAstar(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
+  /**
+   * A* uses the same algorithm as UCS only with heuristic
+   * 
+   * @param mapData
+   * @param initState
+   * @param goalsCoord
+   * @param heuristicType e for euclidean default is manhattan
+   * @return
+   */
+  public String Astar(char[][] mapData, BoardState initState, char heuristicType) {
     HashSet<BoardState> visited = new HashSet<>();
-    Comparator<BoardState> comp = new ManhattanComparator();
+    Comparator<BoardState> comp = new ManhattanAstarComparator();
+    if (heuristicType == 'e') {
+      comp = new EuclideanAstarComparator();
+    }
     Queue<BoardState> frontier = new PriorityQueue<BoardState>(10, comp);
     frontier.add(initState);
 
     while (!frontier.isEmpty()) {
       BoardState currState = frontier.remove();
-
-      if (currState.boxesIsOnGoal(goalsCoord)) {
+      if (currState.boxesIsOnGoal()) {
         return getSolution(currState);
-      } else if (!currState.isDeadLock(mapData, goalsCoord)) {
+      } else if (!currState.isDeadLock(mapData)) {
         visited.add(currState);
         for (BoardState neighbor : getNeighbors(mapData, currState)) {
           if (!visited.contains(neighbor) && !frontier.contains(neighbor)) {
