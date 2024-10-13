@@ -10,7 +10,7 @@ public class BoardState {
     private char move;
     private BoardState parent;
 
-    private int heuristic;
+    private int manhattanHeuristic;
 
     public BoardState(Point playerPos, HashSet<Point> boxes, HashSet<Point> goals, char move, BoardState parent) {
         this.playerPos = playerPos;
@@ -19,19 +19,20 @@ public class BoardState {
         this.move = move;
         this.parent = parent;
 
-        // compute heuristic as the sum of box distances to each goal plus the distance of the player to each box
-        heuristic = computeHeuristic();
+        // compute heuristic as the sum of box distances to each goal plus the distance
+        // of the player to each box
+        manhattanHeuristic = computeManhattanHeuristic();
     }
 
-    public int getHeuristic(){
-        return heuristic;
+    public int getManhattanHeuristic() {
+        return manhattanHeuristic;
     }
 
     /**
      *
      * @return
      */
-    private int computeHeuristic(){
+    private int computeManhattanHeuristic() {
 
         int h = 0;
         int least;
@@ -39,7 +40,7 @@ public class BoardState {
         for (Point b : boxesPos) {
             // for all goals
             least = 99999999;
-            for (Point g : goalsPos){
+            for (Point g : goalsPos) {
                 int m = Math.abs(b.getX() - g.getX()) + Math.abs(b.getY() - g.getY());
                 // compute the manhattan distance between box and goal and keep the lowest one
                 if (m < least)
