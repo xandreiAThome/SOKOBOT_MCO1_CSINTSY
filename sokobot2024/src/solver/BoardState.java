@@ -6,13 +6,16 @@ public class BoardState {
     private Point playerPos;
     // use hashset to use .contains method that is O(1)
     private HashSet<Point> boxesPos;
+    private HashSet<Point> goalsPos;
     private char move;
     private BoardState parent;
     private int cost;
+    private int manhattanHeuristic;
 
-    public BoardState(Point playerPos, HashSet<Point> boxes, char move, BoardState parent) {
+    public BoardState(Point playerPos, HashSet<Point> boxes, HashSet<Point> goals, char move, BoardState parent) {
         this.playerPos = playerPos;
         this.boxesPos = boxes;
+        this.goalsPos = goals;
         this.move = move;
         this.parent = parent;
 
@@ -21,15 +24,43 @@ public class BoardState {
         } else {
             cost = parent.cost + 1; // depth in the tree
         }
+        manhattanHeuristic = computeManhattanHeuristic();
     }
 
     public int getCost() {
         return cost;
     }
 
+    public int getManhattanHeuristic() {
+        return manhattanHeuristic;
+    }
+
     /**
-     * 
-     * @param b
+     *
+     * @return
+     */
+    private int computeManhattanHeuristic() {
+
+        int h = 0;
+        int least;
+        // for all boxes
+        for (Point b : boxesPos) {
+            // for all goals
+            least = 99999999;
+            for (Point g : goalsPos) {
+                int m = Math.abs(b.getX() - g.getX()) + Math.abs(b.getY() - g.getY());
+                // compute the manhattan distance between box and goal and keep the lowest one
+                if (m < least)
+                    least = m;
+            }
+            h += least;
+        }
+        // return the sum of distances as heuristic
+        return h;
+    }
+
+    /**
+     *
      * @param goalsCoord
      * @return
      */
