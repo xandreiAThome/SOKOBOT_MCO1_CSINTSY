@@ -36,7 +36,8 @@ public class SokoBot {
     BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord, ' ', null);
 
     // String moves = BFS(mapData, initState, goalsCoord);
-    String moves = manhattanUCS(mapData, initState, goalsCoord);
+    String moves = manhattanAstar(mapData, initState, goalsCoord);
+    // String moves = Greedy(mapData, initState, goalsCoord);
     return moves;
 
   }
@@ -59,7 +60,6 @@ public class SokoBot {
       for (BoardState n : getNeighbors(mapData, currState)) {
         if (!visited.contains(n) && !availMoves.contains(n)) {
           if (n.boxesIsOnGoal(goalsCoord)) {
-            System.out.println(n.getCost());
             return getSolution(n);
           } else if (!n.isDeadLock(mapData, goalsCoord)) {
             availMoves.add(n);
@@ -126,7 +126,8 @@ public class SokoBot {
     return reverse;
   }
 
-  public String manhattanUCS(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
+  // A* uses the same algorithm as UCS only with heuristic
+  public String manhattanAstar(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
     HashSet<BoardState> visited = new HashSet<>();
     Comparator<BoardState> comp = new ManhattanComparator();
     Queue<BoardState> frontier = new PriorityQueue<BoardState>(10, comp);
