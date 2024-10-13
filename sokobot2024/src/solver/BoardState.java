@@ -43,6 +43,7 @@ public class BoardState {
 
         int h = 0;
         int least;
+
         // for all boxes
         for (Point b : boxesPos) {
             // for all goals

@@ -2,7 +2,7 @@ package solver;
 
 import java.util.Comparator;
 
-public class BoardStateComparator implements Comparator<BoardState> {
+public class ManhattanComparator implements Comparator<BoardState> {
     @Override
     public int compare(BoardState o1, BoardState o2) {
         if (o1.getManhattanHeuristic() < o2.getManhattanHeuristic()) {

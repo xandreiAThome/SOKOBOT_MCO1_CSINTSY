@@ -36,7 +36,7 @@ public class SokoBot {
     BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord, ' ', null);
 
     // String moves = BFS(mapData, initState, goalsCoord);
-    String moves = Greedy(mapData, initState, goalsCoord);
+    String moves = manhattanUCS(mapData, initState, goalsCoord);
     return moves;
 
   }
@@ -87,7 +87,7 @@ public class SokoBot {
     // declare comparator which arranges the priority queue to arrange the
     // BoardStates
     // with the ones having the least heuristic values as higher priority
-    Comparator<BoardState> comp = new BoardStateComparator();
+    Comparator<BoardState> comp = new ManhattanComparator();
     PriorityQueue<BoardState> availMoves = new PriorityQueue<BoardState>(10, comp);
     availMoves.add(initState);
 
@@ -122,19 +122,20 @@ public class SokoBot {
     // reverse because we start getting the moves from the goal to the initial state
     String reverse = new StringBuilder(moves.trim()).reverse().toString();
     System.out.println(reverse);
+    System.out.println(reverse.length());
     return reverse;
   }
 
-  public String UCS(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
+  public String manhattanUCS(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
     HashSet<BoardState> visited = new HashSet<>();
-    Queue<BoardState> frontier = new PriorityQueue<BoardState>(10, costComparator);
+    Comparator<BoardState> comp = new ManhattanComparator();
+    Queue<BoardState> frontier = new PriorityQueue<BoardState>(10, comp);
     frontier.add(initState);
 
     while (!frontier.isEmpty()) {
       BoardState currState = frontier.remove();
 
       if (currState.boxesIsOnGoal(goalsCoord)) {
-        System.out.println(currState.getCost());
         return getSolution(currState);
       } else if (!currState.isDeadLock(mapData, goalsCoord)) {
         visited.add(currState);
@@ -161,13 +162,6 @@ public class SokoBot {
     System.out.println("No solution");
     return "";
   }
-
-  public static Comparator<BoardState> costComparator = new Comparator<BoardState>() {
-    @Override
-    public int compare(BoardState state1, BoardState state2) {
-      return (int) (state1.getCost() - state2.getCost());
-    }
-  };
 
   /**
    * 
