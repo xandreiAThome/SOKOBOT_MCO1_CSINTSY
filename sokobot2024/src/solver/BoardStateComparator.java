@@ -2,7 +2,7 @@ package solver;
 
 import java.util.Comparator;
 
-public class EuclideanComparator implements Comparator<BoardState> {
+public class BoardStateComparator implements Comparator<BoardState> {
     @Override
     public int compare(BoardState o1, BoardState o2) {
         if (o1.getEuclideanHeuristic() < o2.getEuclideanHeuristic()) {

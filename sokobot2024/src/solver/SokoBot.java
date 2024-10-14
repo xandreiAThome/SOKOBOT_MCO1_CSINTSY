@@ -33,14 +33,68 @@ public class SokoBot {
     HashSet<Point> boxesCoord = getBoxesCoord(itemsData);
     Point playerCoord = getPlayerCoord(itemsData);
     goalsCoord = getGoalsCoord(mapData);
-    BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord, ' ', null);
+    BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord,' ', null);
 
-    // String moves = BFS(mapData, initState);
-    String moves = Astar(mapData, initState, 'e');
-    // String moves = Greedy(mapData, initState, 'e');
+    //String moves = BFS(mapData, initState, goalsCoord);
+    //String moves = Greedy(mapData, initState, goalsCoord);
+    String moves = AStar(mapData, initState, goalsCoord);
     return moves;
 
   }
+
+
+  public String AStar(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
+    // A HashSet to track visited states
+    HashSet<BoardState> visited = new HashSet<>();
+    // A Map to store the best cost g(n) for each state
+    Map<BoardState, Integer> bestCosts = new HashMap<>();
+
+    // Comparator that considers the total cost f(n) = g(n) + h(n)
+    Comparator<BoardState> comp = (state1, state2) ->
+            Integer.compare(state1.getPathCost() + state1.getEuclideanHeuristic(), 
+                            state2.getPathCost() + state2.getEuclideanHeuristic());
+
+    // PriorityQueue for frontier (availMoves)
+    PriorityQueue<BoardState> availMoves = new PriorityQueue<>(10, comp);
+    availMoves.add(initState);
+    bestCosts.put(initState, initState.getPathCost());
+
+    while (!availMoves.isEmpty()) {
+        BoardState currState = availMoves.poll();
+
+        // If current state is the goal state, return the solution
+        if (currState.boxesIsOnGoal(goalsCoord)) {
+            return getSolution(currState);
+        }
+
+        visited.add(currState); // Mark the state as visited
+
+        // Iterate over all neighboring states
+        for (BoardState neighbor : getNeighbors(mapData, currState)) {
+            if (visited.contains(neighbor)) {
+                continue; // Skip already visited states
+            }
+
+            int newCost = currState.getPathCost() + 1; // New cost g(n)
+
+            // If the neighbor state is not in the bestCosts map, or we found a better path
+            if (!bestCosts.containsKey(neighbor) || newCost < bestCosts.get(neighbor)) {
+                bestCosts.put(neighbor, newCost); // Update the best cost for this state
+                neighbor.setPathCost(newCost); // Update g(n)
+
+                // Only add the neighbor to the frontier if it's not a deadlock
+                if (!neighbor.isDeadLock(mapData, goalsCoord)) {
+                    availMoves.add(neighbor);
+                }
+            }
+        }
+    }
+
+    System.out.println("No solution found");
+    return "";
+  }
+
+
 
   /**
    * 
@@ -48,11 +102,9 @@ public class SokoBot {
    * @param goalsCoord
    * @return
    */
-  public String BFS(char[][] mapData, BoardState initState) {
+  public String BFS(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
     HashSet<BoardState> visited = new HashSet<>();
     Queue<BoardState> availMoves = new LinkedList<>();
-    if (initState.boxesIsOnGoal())
-      return getSolution(initState);
     availMoves.add(initState);
 
     while (!availMoves.isEmpty()) {
@@ -61,9 +113,9 @@ public class SokoBot {
 
       for (BoardState n : getNeighbors(mapData, currState)) {
         if (!visited.contains(n) && !availMoves.contains(n)) {
-          if (n.boxesIsOnGoal()) {
+          if (n.boxesIsOnGoal(goalsCoord)) {
             return getSolution(n);
-          } else if (!n.isDeadLock(mapData)) {
+          } else if (!n.isDeadLock(mapData, goalsCoord)) {
             availMoves.add(n);
           }
         }
@@ -76,38 +128,32 @@ public class SokoBot {
   }
 
   /**
-   * 
+   * Solves the problem via greedy best first search method
+   *
    * @param mapData
    * @param initState
    * @param goalsCoord
-   * @param heuristicType 'e' for euclidean, default is manhattan
    * @return
    */
-  public String Greedy(char[][] mapData, BoardState initState, char heuristicType) {
+  public String Greedy(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
     HashSet<BoardState> visited = new HashSet<>();
 
-    // declare comparator which arranges the priority queue to arrange the
-    // BoardStates
+    // declare comparator which arranges the priority queue to arrange the BoardStates
     // with the ones having the least heuristic values as higher priority
-    Comparator<BoardState> comp = new ManhattanComparator();
-    if (heuristicType == 'e') {
-      comp = new EuclideanComparator();
-    }
-    if (initState.boxesIsOnGoal())
-      return getSolution(initState);
-    PriorityQueue<BoardState> availMoves = new PriorityQueue<BoardState>(10, comp);
+    Comparator<BoardState> comp = new BoardStateComparator();
+    PriorityQueue<BoardState> availMoves = new PriorityQueue<BoardState>(10,comp);
     availMoves.add(initState);
 
     while (!availMoves.isEmpty()) {
       BoardState currState = availMoves.poll();
       visited.add(currState);
-      // System.out.println("heuristic:" + currState.getHeuristic());
+      //System.out.println("heuristic:" + currState.getEuclideanHeuristic());
 
       for (BoardState n : getNeighbors(mapData, currState)) {
         if (!visited.contains(n) && !availMoves.contains(n)) {
-          if (n.boxesIsOnGoal()) {
+          if (n.boxesIsOnGoal(goalsCoord)) {
             return getSolution(n);
-          } else if (!n.isDeadLock(mapData)) {
+          } else if (!n.isDeadLock(mapData, goalsCoord)) {
             availMoves.add(n);
           }
         }
@@ -129,56 +175,7 @@ public class SokoBot {
     // reverse because we start getting the moves from the goal to the initial state
     String reverse = new StringBuilder(moves.trim()).reverse().toString();
     System.out.println(reverse);
-    System.out.println(reverse.length());
     return reverse;
-  }
-
-  /**
-   * A* uses the same algorithm as UCS only with heuristic
-   * 
-   * @param mapData
-   * @param initState
-   * @param goalsCoord
-   * @param heuristicType 'e' for euclidean, default is manhattan
-   * @return
-   */
-  public String Astar(char[][] mapData, BoardState initState, char heuristicType) {
-    HashSet<BoardState> visited = new HashSet<>();
-    Comparator<BoardState> comp = new ManhattanAstarComparator();
-    if (heuristicType == 'e') {
-      comp = new EuclideanAstarComparator();
-    }
-    Queue<BoardState> frontier = new PriorityQueue<BoardState>(10, comp);
-    frontier.add(initState);
-
-    while (!frontier.isEmpty()) {
-      BoardState currState = frontier.remove();
-      if (currState.boxesIsOnGoal()) {
-        return getSolution(currState);
-      } else if (!currState.isDeadLock(mapData)) {
-        visited.add(currState);
-        for (BoardState neighbor : getNeighbors(mapData, currState)) {
-          if (!visited.contains(neighbor) && !frontier.contains(neighbor)) {
-            frontier.add(neighbor);
-          } else {
-            for (BoardState front : frontier) {
-              // if new move is already in frontier and new move has lesser cost than the
-              // frontier
-              // then replace the frontier with the new moveg
-              if (front == neighbor) {
-                if (neighbor.getCost() < front.getCost()) {
-                  frontier.remove(front);
-                  frontier.add(neighbor);
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    System.out.println("No solution");
-    return "";
   }
 
   /**
@@ -263,14 +260,14 @@ public class SokoBot {
     if (isMoveValid(mapData, RIGHT, state)) {
       HashSet<Point> movedBoxes = moveBoxes(state, RIGHT);
       Point movedPlayer = new Point(playerPos.getX() + RIGHT[0], playerPos.getY() + RIGHT[1]);
-      BoardState newState = new BoardState(movedPlayer, movedBoxes, goalsCoord, 'r', state);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes,  goalsCoord,'r', state);
       neighbors.add(newState);
     }
 
     if (isMoveValid(mapData, LEFT, state)) {
       HashSet<Point> movedBoxes = moveBoxes(state, LEFT);
       Point movedPlayer = new Point(playerPos.getX() + LEFT[0], playerPos.getY() + LEFT[1]);
-      BoardState newState = new BoardState(movedPlayer, movedBoxes, goalsCoord, 'l', state);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, goalsCoord,'l', state);
       neighbors.add(newState);
     }
 
