@@ -36,8 +36,8 @@ public class SokoBot {
     BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord, ' ', null);
 
     // String moves = BFS(mapData, initState);
-    // String moves = Astar(mapData, initState, 'm');
-    String moves = Greedy(mapData, initState, 'm');
+    String moves = Astar(mapData, initState, 'e');
+    // String moves = Greedy(mapData, initState, 'e');
     return moves;
 
   }
@@ -51,6 +51,8 @@ public class SokoBot {
   public String BFS(char[][] mapData, BoardState initState) {
     HashSet<BoardState> visited = new HashSet<>();
     Queue<BoardState> availMoves = new LinkedList<>();
+    if (initState.boxesIsOnGoal())
+      return getSolution(initState);
     availMoves.add(initState);
 
     while (!availMoves.isEmpty()) {
@@ -78,7 +80,7 @@ public class SokoBot {
    * @param mapData
    * @param initState
    * @param goalsCoord
-   * @param heuristicType e for euclidean, default is manhattan
+   * @param heuristicType 'e' for euclidean, default is manhattan
    * @return
    */
   public String Greedy(char[][] mapData, BoardState initState, char heuristicType) {
@@ -91,6 +93,8 @@ public class SokoBot {
     if (heuristicType == 'e') {
       comp = new EuclideanComparator();
     }
+    if (initState.boxesIsOnGoal())
+      return getSolution(initState);
     PriorityQueue<BoardState> availMoves = new PriorityQueue<BoardState>(10, comp);
     availMoves.add(initState);
 
@@ -135,7 +139,7 @@ public class SokoBot {
    * @param mapData
    * @param initState
    * @param goalsCoord
-   * @param heuristicType e for euclidean default is manhattan
+   * @param heuristicType 'e' for euclidean, default is manhattan
    * @return
    */
   public String Astar(char[][] mapData, BoardState initState, char heuristicType) {
