@@ -1,9 +1,7 @@
 package solver;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
+
 // XY plane starts from the topmost left and starts at 0
 /*
  * example
@@ -13,13 +11,14 @@ import java.util.List;
  * 3
  * Y
  */
-import java.util.Queue;
 
 public class SokoBot {
   final int[] UP = { 0, -1 };
   final int[] DOWN = { 0, 1 };
   final int[] LEFT = { -1, 0 };
   final int[] RIGHT = { 1, 0 };
+
+  private HashSet<Point> goalsCoord;
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
     /*
@@ -33,10 +32,12 @@ public class SokoBot {
 
     HashSet<Point> boxesCoord = getBoxesCoord(itemsData);
     Point playerCoord = getPlayerCoord(itemsData);
-    HashSet<Point> goalsCoord = getGoalsCoord(mapData);
-    BoardState initState = new BoardState(playerCoord, boxesCoord, ' ', null);
+    goalsCoord = getGoalsCoord(mapData);
+    BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord, ' ', null);
 
-    String moves = BFS(mapData, initState, goalsCoord);
+    // String moves = BFS(mapData, initState);
+    String moves = Astar(mapData, initState, 'e');
+    // String moves = Greedy(mapData, initState, 'e');
     return moves;
 
   }
@@ -44,13 +45,14 @@ public class SokoBot {
   /**
    * 
    * @param mapData
-   * @param initNode
    * @param goalsCoord
    * @return
    */
-  public String BFS(char[][] mapData, BoardState initState, HashSet<Point> goalsCoord) {
+  public String BFS(char[][] mapData, BoardState initState) {
     HashSet<BoardState> visited = new HashSet<>();
     Queue<BoardState> availMoves = new LinkedList<>();
+    if (initState.boxesIsOnGoal())
+      return getSolution(initState);
     availMoves.add(initState);
 
     while (!availMoves.isEmpty()) {
@@ -59,9 +61,53 @@ public class SokoBot {
 
       for (BoardState n : getNeighbors(mapData, currState)) {
         if (!visited.contains(n) && !availMoves.contains(n)) {
-          if (n.boxesIsOnGoal(goalsCoord)) {
+          if (n.boxesIsOnGoal()) {
             return getSolution(n);
-          } else if (!n.isDeadLock(mapData, goalsCoord)) {
+          } else if (!n.isDeadLock(mapData)) {
+            availMoves.add(n);
+          }
+        }
+      }
+    }
+
+    System.out.println("No solution");
+    return "";
+
+  }
+
+  /**
+   * 
+   * @param mapData
+   * @param initState
+   * @param goalsCoord
+   * @param heuristicType 'e' for euclidean, default is manhattan
+   * @return
+   */
+  public String Greedy(char[][] mapData, BoardState initState, char heuristicType) {
+    HashSet<BoardState> visited = new HashSet<>();
+
+    // declare comparator which arranges the priority queue to arrange the
+    // BoardStates
+    // with the ones having the least heuristic values as higher priority
+    Comparator<BoardState> comp = new ManhattanComparator();
+    if (heuristicType == 'e') {
+      comp = new EuclideanComparator();
+    }
+    if (initState.boxesIsOnGoal())
+      return getSolution(initState);
+    PriorityQueue<BoardState> availMoves = new PriorityQueue<BoardState>(10, comp);
+    availMoves.add(initState);
+
+    while (!availMoves.isEmpty()) {
+      BoardState currState = availMoves.poll();
+      visited.add(currState);
+      // System.out.println("heuristic:" + currState.getHeuristic());
+
+      for (BoardState n : getNeighbors(mapData, currState)) {
+        if (!visited.contains(n) && !availMoves.contains(n)) {
+          if (n.boxesIsOnGoal()) {
+            return getSolution(n);
+          } else if (!n.isDeadLock(mapData)) {
             availMoves.add(n);
           }
         }
@@ -83,7 +129,56 @@ public class SokoBot {
     // reverse because we start getting the moves from the goal to the initial state
     String reverse = new StringBuilder(moves.trim()).reverse().toString();
     System.out.println(reverse);
+    System.out.println(reverse.length());
     return reverse;
+  }
+
+  /**
+   * A* uses the same algorithm as UCS only with heuristic
+   * 
+   * @param mapData
+   * @param initState
+   * @param goalsCoord
+   * @param heuristicType 'e' for euclidean, default is manhattan
+   * @return
+   */
+  public String Astar(char[][] mapData, BoardState initState, char heuristicType) {
+    HashSet<BoardState> visited = new HashSet<>();
+    Comparator<BoardState> comp = new ManhattanAstarComparator();
+    if (heuristicType == 'e') {
+      comp = new EuclideanAstarComparator();
+    }
+    Queue<BoardState> frontier = new PriorityQueue<BoardState>(10, comp);
+    frontier.add(initState);
+
+    while (!frontier.isEmpty()) {
+      BoardState currState = frontier.remove();
+      if (currState.boxesIsOnGoal()) {
+        return getSolution(currState);
+      } else if (!currState.isDeadLock(mapData)) {
+        visited.add(currState);
+        for (BoardState neighbor : getNeighbors(mapData, currState)) {
+          if (!visited.contains(neighbor) && !frontier.contains(neighbor)) {
+            frontier.add(neighbor);
+          } else {
+            for (BoardState front : frontier) {
+              // if new move is already in frontier and new move has lesser cost than the
+              // frontier
+              // then replace the frontier with the new moveg
+              if (front == neighbor) {
+                if (neighbor.getCost() < front.getCost()) {
+                  frontier.remove(front);
+                  frontier.add(neighbor);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    System.out.println("No solution");
+    return "";
   }
 
   /**
@@ -154,28 +249,28 @@ public class SokoBot {
     if (isMoveValid(mapData, UP, state)) {
       HashSet<Point> movedBoxes = moveBoxes(state, UP);
       Point movedPlayer = new Point(playerPos.getX() + UP[0], playerPos.getY() + UP[1]);
-      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'u', state);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, goalsCoord, 'u', state);
       neighbors.add(newState);
     }
 
     if (isMoveValid(mapData, DOWN, state)) {
       HashSet<Point> movedBoxes = moveBoxes(state, DOWN);
       Point movedPlayer = new Point(playerPos.getX() + DOWN[0], playerPos.getY() + DOWN[1]);
-      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'd', state);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, goalsCoord, 'd', state);
       neighbors.add(newState);
     }
 
     if (isMoveValid(mapData, RIGHT, state)) {
       HashSet<Point> movedBoxes = moveBoxes(state, RIGHT);
       Point movedPlayer = new Point(playerPos.getX() + RIGHT[0], playerPos.getY() + RIGHT[1]);
-      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'r', state);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, goalsCoord, 'r', state);
       neighbors.add(newState);
     }
 
     if (isMoveValid(mapData, LEFT, state)) {
       HashSet<Point> movedBoxes = moveBoxes(state, LEFT);
       Point movedPlayer = new Point(playerPos.getX() + LEFT[0], playerPos.getY() + LEFT[1]);
-      BoardState newState = new BoardState(movedPlayer, movedBoxes, 'l', state);
+      BoardState newState = new BoardState(movedPlayer, movedBoxes, goalsCoord, 'l', state);
       neighbors.add(newState);
     }
 
@@ -200,8 +295,6 @@ public class SokoBot {
    * 
    * @param mapData
    * @param move
-   * @param boxesCoord
-   * @param playerCoord
    * @return
    */
   private boolean isMoveValid(char[][] mapData, int[] move, BoardState state) {
