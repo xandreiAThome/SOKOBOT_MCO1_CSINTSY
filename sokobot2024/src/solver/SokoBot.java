@@ -144,6 +144,8 @@ public class SokoBot {
    */
   public String Astar(char[][] mapData, BoardState initState, char heuristicType) {
     HashSet<BoardState> visited = new HashSet<>();
+    // hashmap for bestcost of a particular state
+    HashMap<BoardState, BoardState> bestCost = new HashMap<>();
     Comparator<BoardState> comp = new ManhattanAstarComparator();
     if (heuristicType == 'e') {
       comp = new EuclideanAstarComparator();
@@ -155,25 +157,35 @@ public class SokoBot {
       BoardState currState = frontier.remove();
       if (currState.boxesIsOnGoal()) {
         return getSolution(currState);
-      } else if (!currState.isDeadLock(mapData)) {
-        visited.add(currState);
-        for (BoardState neighbor : getNeighbors(mapData, currState)) {
-          if (!visited.contains(neighbor) && !frontier.contains(neighbor)) {
-            frontier.add(neighbor);
+      }
+      visited.add(currState);
+      for (BoardState neighbor : getNeighbors(mapData, currState)) {
+        if (visited.contains(neighbor))
+          continue;
+
+        // if new move has a evaluation better than prevBest then replace it in the
+        // bestHashMap and frontier, otherwise dont put the new move in frontier
+        BoardState prevBest = bestCost.get(neighbor);
+        if (!neighbor.isDeadLock(mapData)) {
+          // if euclidean heuristic
+          if (heuristicType == 'e') {
+            if (!bestCost.containsKey(neighbor) || neighbor.getCost()
+                + neighbor.getEuclideanHeuristic() < prevBest.getCost() + prevBest.getEuclideanHeuristic()) {
+              bestCost.put(neighbor, neighbor);
+              frontier.remove(prevBest);
+              frontier.add(neighbor);
+            }
           } else {
-            for (BoardState front : frontier) {
-              // if new move is already in frontier and new move has lesser cost than the
-              // frontier
-              // then replace the frontier with the new moveg
-              if (front == neighbor) {
-                if (neighbor.getCost() < front.getCost()) {
-                  frontier.remove(front);
-                  frontier.add(neighbor);
-                }
-              }
+            // if manhattan
+            if (!bestCost.containsKey(neighbor) || neighbor.getCost()
+                + neighbor.getManhattanHeuristic() < prevBest.getCost() + prevBest.getManhattanHeuristic()) {
+              bestCost.put(neighbor, neighbor);
+              frontier.remove(prevBest);
+              frontier.add(neighbor);
             }
           }
         }
+
       }
     }
 
