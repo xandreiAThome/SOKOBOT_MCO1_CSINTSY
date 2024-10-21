@@ -29,17 +29,15 @@ public class SokoBot {
      * sequence
      * that just moves left and right repeatedly.
      */
-
     HashSet<Point> boxesCoord = getBoxesCoord(itemsData);
     Point playerCoord = getPlayerCoord(itemsData);
     goalsCoord = getGoalsCoord(mapData);
     BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord, ' ', null);
-
     // String moves = BFS(mapData, initState);
-    String moves = Astar(mapData, initState, 'e');
-    // String moves = Greedy(mapData, initState, 'e');
+    // String moves = Astar(mapData, initState, 'm');
+    String moves = Greedy(mapData, initState, 'm');
+    // String moves = IDAstar(mapData, initState);
     return moves;
-
   }
 
   /**
@@ -51,6 +49,7 @@ public class SokoBot {
   public String BFS(char[][] mapData, BoardState initState) {
     HashSet<BoardState> visited = new HashSet<>();
     Queue<BoardState> availMoves = new LinkedList<>();
+    int generated = 0;
     if (initState.boxesIsOnGoal())
       return getSolution(initState);
     availMoves.add(initState);
@@ -61,7 +60,10 @@ public class SokoBot {
 
       for (BoardState n : getNeighbors(mapData, currState)) {
         if (!visited.contains(n) && !availMoves.contains(n)) {
+          generated++;
           if (n.boxesIsOnGoal()) {
+            System.out.println("generated: " + generated);
+            System.out.println("visited nodes: " + visited.size());
             return getSolution(n);
           } else if (!n.isDeadLock(mapData)) {
             availMoves.add(n);
@@ -103,9 +105,13 @@ public class SokoBot {
       visited.add(currState);
       // System.out.println("heuristic:" + currState.getHeuristic());
 
-      for (BoardState n : getNeighbors(mapData, currState)) {
+      List<BoardState> succ = getNeighbors(mapData, currState);
+      Collections.sort(succ, new ManhattanAstarComparator());
+
+      for (BoardState n : succ) {
         if (!visited.contains(n) && !availMoves.contains(n)) {
           if (n.boxesIsOnGoal()) {
+            System.out.println("visited nodes: " + visited.size());
             return getSolution(n);
           } else if (!n.isDeadLock(mapData)) {
             availMoves.add(n);
@@ -151,11 +157,14 @@ public class SokoBot {
       comp = new EuclideanAstarComparator();
     }
     Queue<BoardState> frontier = new PriorityQueue<BoardState>(10, comp);
+    int generated = 0;
     frontier.add(initState);
 
     while (!frontier.isEmpty()) {
       BoardState currState = frontier.remove();
       if (currState.boxesIsOnGoal()) {
+        System.out.println("visited nodes: " + visited.size());
+        System.out.println("generated: " + generated);
         return getSolution(currState);
       }
       visited.add(currState);
@@ -174,6 +183,7 @@ public class SokoBot {
               bestCost.put(neighbor, neighbor);
               frontier.remove(prevBest);
               frontier.add(neighbor);
+              generated++;
             }
           } else {
             // if manhattan
@@ -182,6 +192,7 @@ public class SokoBot {
               bestCost.put(neighbor, neighbor);
               frontier.remove(prevBest);
               frontier.add(neighbor);
+              generated++;
             }
           }
         }
@@ -191,6 +202,64 @@ public class SokoBot {
 
     System.out.println("No solution");
     return "";
+  }
+
+  public String IDAstar(char[][] mapData, BoardState initState) {
+    int bound = lowerBoundEstimate(initState);
+    Stack<BoardState> path = new Stack<>();
+    path.add(initState);
+
+    while (true) {
+      int t = IDAsearch(path, bound, mapData);
+      if (t == 0)
+        return getSolution(path.peek());
+      if (t == 99999999) {
+        System.out.println("No solution found");
+        return "";
+      }
+      bound = t;
+    }
+  }
+
+  public int IDAsearch(Stack<BoardState> path, int bound, char[][] mapData) {
+    BoardState state = path.peek();
+    int f = state.getCost() + state.getManhattanHeuristic();
+    if (f > bound)
+      return f * 2;
+    if (state.boxesIsOnGoal())
+      return 0;
+
+    int min = 99999999;
+    for (BoardState neighbor : getNeighbors(mapData, state)) {
+      if (!path.contains(neighbor)) {
+        path.push(neighbor);
+        int t = IDAsearch(path, bound, mapData);
+        if (t == 0)
+          return 0;
+        if (t < min)
+          min = t;
+        path.pop();
+      }
+    }
+
+    return min;
+  }
+
+  public int lowerBoundEstimate(BoardState initState) {
+    int sumDistance = 0;
+
+    for (Point b : initState.getBoxesPos()) {
+      int minDistance = 99999999;
+      for (Point g : initState.getGoalsPos()) {
+        int m = Math.abs(b.getX() - g.getX()) + Math.abs(b.getY() - g.getY());
+        // compute the manhattan distance between box and goal and keep the lowest one
+        if (m < minDistance)
+          minDistance = m;
+      }
+      sumDistance += minDistance;
+    }
+
+    return sumDistance * 10; // arbitrary multiplier for the depth estimate
   }
 
   /**

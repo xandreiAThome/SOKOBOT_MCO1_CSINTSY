@@ -70,19 +70,19 @@ public class BoardState {
     private int computeManhattanHeuristic() {
 
         int h = 0;
-        int least;
-
+        int leastGoal;
         // for all boxes
         for (Point b : boxesPos) {
             // for all goals
-            least = 99999999;
+            leastGoal = 99999999;
             for (Point g : goalsPos) {
                 int m = Math.abs(b.getX() - g.getX()) + Math.abs(b.getY() - g.getY());
                 // compute the manhattan distance between box and goal and keep the lowest one
-                if (m < least)
-                    least = m;
+                if (m < leastGoal)
+                    leastGoal = m;
             }
-            h += least;
+
+            h += leastGoal;
         }
         // return the sum of distances as heuristic
         return h;
@@ -118,6 +118,10 @@ public class BoardState {
         return playerPos;
     }
 
+    public void setCost(int x) {
+        cost = x;
+    }
+
     // also uses prime numbers to make a unique hash
     @Override
     public int hashCode() {
@@ -143,6 +147,10 @@ public class BoardState {
 
     public HashSet<Point> getBoxesPos() {
         return boxesPos;
+    }
+
+    public HashSet<Point> getGoalsPos() {
+        return goalsPos;
     }
 
     public boolean isDeadLock(char[][] mapData) {
