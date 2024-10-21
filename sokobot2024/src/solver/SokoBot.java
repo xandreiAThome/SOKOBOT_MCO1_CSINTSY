@@ -19,6 +19,7 @@ public class SokoBot {
   final int[] RIGHT = { 1, 0 };
 
   private HashSet<Point> goalsCoord;
+  private HashMap<String, Boolean> edgeContainGoal;
 
   public String solveSokobanPuzzle(int width, int height, char[][] mapData, char[][] itemsData) {
     /*
@@ -33,11 +34,12 @@ public class SokoBot {
     HashSet<Point> boxesCoord = getBoxesCoord(itemsData);
     Point playerCoord = getPlayerCoord(itemsData);
     goalsCoord = getGoalsCoord(mapData);
-    BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord, ' ', null);
+    edgeContainGoal = getEdgesContainGoal(width, height);
 
-    // String moves = BFS(mapData, initState);
-    String moves = Astar(mapData, initState, 'e');
-    // String moves = Greedy(mapData, initState, 'e');
+    BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord, ' ', null);
+    // String moves = BFS(mapData, initState, width, height);
+    String moves = Astar(mapData, initState, 'm', width, height);
+    // String moves = Greedy(mapData, initState, 'e', width, height);
     return moves;
 
   }
@@ -48,11 +50,13 @@ public class SokoBot {
    * @param goalsCoord
    * @return
    */
-  public String BFS(char[][] mapData, BoardState initState) {
+  public String BFS(char[][] mapData, BoardState initState, int width, int height) {
     HashSet<BoardState> visited = new HashSet<>();
     Queue<BoardState> availMoves = new LinkedList<>();
-    if (initState.boxesIsOnGoal())
+    if (initState.boxesIsOnGoal()) {
+      System.out.println("visited nodes: " + visited.size());
       return getSolution(initState);
+    }
     availMoves.add(initState);
 
     while (!availMoves.isEmpty()) {
@@ -62,8 +66,9 @@ public class SokoBot {
       for (BoardState n : getNeighbors(mapData, currState)) {
         if (!visited.contains(n) && !availMoves.contains(n)) {
           if (n.boxesIsOnGoal()) {
+            System.out.println("visited nodes: " + visited.size());
             return getSolution(n);
-          } else if (!n.isDeadLock(mapData)) {
+          } else if (!n.isDeadLock(mapData, edgeContainGoal, width, height)) {
             availMoves.add(n);
           }
         }
@@ -72,7 +77,29 @@ public class SokoBot {
 
     System.out.println("No solution");
     return "";
+  }
 
+  public HashMap<String, Boolean> getEdgesContainGoal(int width, int height) {
+    HashMap<String, Boolean> edgeContainsGoal = new HashMap<>();
+    for (Point g : goalsCoord) {
+      if (g.getY() == 1) {
+        edgeContainsGoal.put("top", true);
+      }
+
+      if (g.getY() == height - 2) {
+        edgeContainsGoal.put("bot", true);
+      }
+
+      if (g.getX() == 1) {
+        edgeContainsGoal.put("left", true);
+      }
+
+      if (g.getX() == width - 2) {
+        edgeContainsGoal.put("right", true);
+      }
+    }
+
+    return edgeContainsGoal;
   }
 
   /**
@@ -83,7 +110,7 @@ public class SokoBot {
    * @param heuristicType 'e' for euclidean, default is manhattan
    * @return
    */
-  public String Greedy(char[][] mapData, BoardState initState, char heuristicType) {
+  public String Greedy(char[][] mapData, BoardState initState, char heuristicType, int width, int height) {
     HashSet<BoardState> visited = new HashSet<>();
 
     // declare comparator which arranges the priority queue to arrange the
@@ -93,8 +120,10 @@ public class SokoBot {
     if (heuristicType == 'e') {
       comp = new EuclideanComparator();
     }
-    if (initState.boxesIsOnGoal())
+    if (initState.boxesIsOnGoal()) {
+      System.out.println("visited nodes: " + visited.size());
       return getSolution(initState);
+    }
     PriorityQueue<BoardState> availMoves = new PriorityQueue<BoardState>(10, comp);
     availMoves.add(initState);
 
@@ -106,8 +135,9 @@ public class SokoBot {
       for (BoardState n : getNeighbors(mapData, currState)) {
         if (!visited.contains(n) && !availMoves.contains(n)) {
           if (n.boxesIsOnGoal()) {
+            System.out.println("visited nodes: " + visited.size());
             return getSolution(n);
-          } else if (!n.isDeadLock(mapData)) {
+          } else if (!n.isDeadLock(mapData, edgeContainGoal, width, height)) {
             availMoves.add(n);
           }
         }
@@ -129,7 +159,7 @@ public class SokoBot {
     // reverse because we start getting the moves from the goal to the initial state
     String reverse = new StringBuilder(moves.trim()).reverse().toString();
     System.out.println(reverse);
-    System.out.println(reverse.length());
+    System.out.println("depth: " + reverse.length());
     return reverse;
   }
 
@@ -142,7 +172,7 @@ public class SokoBot {
    * @param heuristicType 'e' for euclidean, default is manhattan
    * @return
    */
-  public String Astar(char[][] mapData, BoardState initState, char heuristicType) {
+  public String Astar(char[][] mapData, BoardState initState, char heuristicType, int width, int height) {
     HashSet<BoardState> visited = new HashSet<>();
     // hashmap for bestcost of a particular state
     HashMap<BoardState, BoardState> bestCost = new HashMap<>();
@@ -156,6 +186,7 @@ public class SokoBot {
     while (!frontier.isEmpty()) {
       BoardState currState = frontier.remove();
       if (currState.boxesIsOnGoal()) {
+        System.out.println("visited nodes: " + visited.size());
         return getSolution(currState);
       }
       visited.add(currState);
@@ -166,7 +197,7 @@ public class SokoBot {
         // if new move has a evaluation better than prevBest then replace it in the
         // bestHashMap and frontier, otherwise dont put the new move in frontier
         BoardState prevBest = bestCost.get(neighbor);
-        if (!neighbor.isDeadLock(mapData)) {
+        if (!neighbor.isDeadLock(mapData, edgeContainGoal, width, height)) {
           // if euclidean heuristic
           if (heuristicType == 'e') {
             if (!bestCost.containsKey(neighbor) || neighbor.getCost()
