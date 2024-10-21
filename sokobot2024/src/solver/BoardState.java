@@ -1,6 +1,7 @@
 package solver;
 
 import java.util.HashSet;
+import java.util.HashMap;
 
 public class BoardState {
     private Point playerPos;
@@ -145,8 +146,7 @@ public class BoardState {
         return boxesPos;
     }
 
-    public boolean isDeadLock(char[][] mapData) {
-        boolean deadLock = false;
+    public boolean isDeadLock(char[][] mapData, HashMap<String, Boolean> edgeContainGoal, int width, int height) {
         HashSet<Character> invalid = new HashSet<>();
         invalid.add('#');
         invalid.add('$');
@@ -157,39 +157,40 @@ public class BoardState {
             } else {
                 // for top left of the box
                 if (invalid.contains(mapData[b.getY() - 1][b.getX()])
-                        && invalid.contains(mapData[b.getY()][b.getX() - 1])) {
-
-                    deadLock = true;
-                    break;
-                }
+                        && invalid.contains(mapData[b.getY()][b.getX() - 1]))
+                    return true;
 
                 // top right of the box
                 if (invalid.contains(mapData[b.getY() - 1][b.getX()])
-                        && invalid.contains(mapData[b.getY()][b.getX() + 1])) {
-
-                    deadLock = true;
-                    break;
-                }
+                        && invalid.contains(mapData[b.getY()][b.getX() + 1]))
+                    return true;
 
                 // bottom left of the box
                 if (invalid.contains(mapData[b.getY() + 1][b.getX()])
-                        && invalid.contains(mapData[b.getY()][b.getX() - 1])) {
-
-                    deadLock = true;
-                    break;
-                }
+                        && invalid.contains(mapData[b.getY()][b.getX() - 1]))
+                    return true;
 
                 // bottom right of the box
                 if (invalid.contains(mapData[b.getY() + 1][b.getX()])
-                        && invalid.contains(mapData[b.getY()][b.getX() + 1])) {
+                        && invalid.contains(mapData[b.getY()][b.getX() + 1]))
+                    return true;
 
-                    deadLock = true;
-                    break;
-                }
+                if (edgeContainGoal.get("top") == null && b.getY() == 1)
+                    return true;
+
+                if (edgeContainGoal.get("bot") == null && b.getY() == height - 2)
+                    return true;
+
+                if (edgeContainGoal.get("left") == null && b.getX() == 1)
+                    return true;
+
+                if (edgeContainGoal.get("right") == null && b.getX() == width - 2)
+                    return true;
+
             }
 
         }
 
-        return deadLock;
+        return false;
     }
 }
