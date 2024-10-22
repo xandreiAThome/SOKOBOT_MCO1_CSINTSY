@@ -38,8 +38,8 @@ public class SokoBot {
 
     BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord, ' ', null);
     // String moves = BFS(mapData, initState, width, height);
-    String moves = Astar(mapData, initState, 'm', width, height);
-    // String moves = Greedy(mapData, initState, 'e', width, height);
+    // String moves = Astar(mapData, initState, 'm', width, height);
+    String moves = Greedy(mapData, initState, 'm', width, height);
     return moves;
 
   }
