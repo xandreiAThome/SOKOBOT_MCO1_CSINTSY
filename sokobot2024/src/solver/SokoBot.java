@@ -79,6 +79,37 @@ public class SokoBot {
     return "";
   }
 
+  public String DFS(char[][] mapData, BoardState initState, int width, int height) {
+    HashSet<BoardState> visited = new HashSet<>();
+    Stack<BoardState>  availMoves = new Stack<>();
+    
+    if (initState.boxesIsOnGoal()) {
+        System.out.println("visited nodes: " + visited.size());
+        return getSolution(initState);
+    }
+    
+    availMoves.push(initState);
+
+    while (!availMoves.isEmpty()) {
+        BoardState currState = availMoves.pop();
+        visited.add(currState);
+
+        for (BoardState n : getNeighbors(mapData, currState)) {
+            if (!visited.contains(n) && !availMoves.contains(n)) {
+                if (n.boxesIsOnGoal()) {
+                    System.out.println("visited nodes: " + visited.size());
+                    return getSolution(n);
+                } else if (!n.isDeadLock(mapData, edgeContainGoal, width, height)) {
+                    availMoves.push(n);
+                }
+            }
+        }
+    }
+
+    System.out.println("No solution");
+    return "";
+}
+
   public HashMap<String, Boolean> getEdgesContainGoal(int width, int height) {
     HashMap<String, Boolean> edgeContainsGoal = new HashMap<>();
     for (Point g : goalsCoord) {
