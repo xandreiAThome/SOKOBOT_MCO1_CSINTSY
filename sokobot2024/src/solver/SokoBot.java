@@ -38,8 +38,8 @@ public class SokoBot {
 
     BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord, ' ', null);
     // String moves = BFS(mapData, initState, width, height);
-    // String moves = Astar(mapData, initState, 'm', width, height);
-    String moves = Greedy(mapData, initState, 'm', width, height);
+    String moves = Astar(mapData, initState, width, height);
+    // String moves = Greedy(mapData, initState, 'm', width, height);
     return moves;
 
   }
@@ -169,17 +169,15 @@ public class SokoBot {
    * @param mapData
    * @param initState
    * @param goalsCoord
-   * @param heuristicType 'e' for euclidean, default is manhattan
+   * @param width
+   * @param height
    * @return
    */
-  public String Astar(char[][] mapData, BoardState initState, char heuristicType, int width, int height) {
+  public String Astar(char[][] mapData, BoardState initState, int width, int height) {
     HashSet<BoardState> visited = new HashSet<>();
     // hashmap for bestcost of a particular state
     HashMap<BoardState, BoardState> bestCost = new HashMap<>();
     Comparator<BoardState> comp = new ManhattanAstarComparator();
-    if (heuristicType == 'e') {
-      comp = new EuclideanAstarComparator();
-    }
     Queue<BoardState> frontier = new PriorityQueue<BoardState>(10, comp);
     frontier.add(initState);
 
@@ -198,26 +196,17 @@ public class SokoBot {
         // bestHashMap and frontier, otherwise dont put the new move in frontier
         BoardState prevBest = bestCost.get(neighbor);
         if (!neighbor.isDeadLock(mapData, edgeContainGoal, width, height)) {
-          // if euclidean heuristic
-          if (heuristicType == 'e') {
-            if (!bestCost.containsKey(neighbor) || neighbor.getCost()
-                + neighbor.getEuclideanHeuristic() < prevBest.getCost() + prevBest.getEuclideanHeuristic()) {
-              bestCost.put(neighbor, neighbor);
-              frontier.remove(prevBest);
-              frontier.add(neighbor);
-            }
-          } else {
-            // if manhattan
-            if (!bestCost.containsKey(neighbor) || neighbor.getCost()
-                + neighbor.getManhattanHeuristic() < prevBest.getCost() + prevBest.getManhattanHeuristic()) {
-              bestCost.put(neighbor, neighbor);
-              frontier.remove(prevBest);
-              frontier.add(neighbor);
-            }
+          if (!bestCost.containsKey(neighbor) || neighbor.getCost()
+              + neighbor.getManhattanHeuristic() < prevBest.getCost() + prevBest.getManhattanHeuristic()) {
+            if (prevBest != null)
+              bestCost.remove(prevBest);
+            bestCost.put(neighbor, neighbor);
+            frontier.remove(prevBest);
+            frontier.add(neighbor);
           }
         }
-
       }
+
     }
 
     System.out.println("No solution");

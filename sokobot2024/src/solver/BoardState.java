@@ -175,15 +175,16 @@ public class BoardState {
                         && invalid.contains(mapData[b.getY()][b.getX() + 1]))
                     return true;
 
+                // top wall of the map
                 if (edgeContainGoal.get("top") == null && b.getY() == 1)
                     return true;
-
+                // bottom wall of the map
                 if (edgeContainGoal.get("bot") == null && b.getY() == height - 2)
                     return true;
-
+                // left wall of the map
                 if (edgeContainGoal.get("left") == null && b.getX() == 1)
                     return true;
-
+                // right wall of the map
                 if (edgeContainGoal.get("right") == null && b.getX() == width - 2)
                     return true;
 
