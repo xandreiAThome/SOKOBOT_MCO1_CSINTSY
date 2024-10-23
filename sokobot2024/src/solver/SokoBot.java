@@ -2,6 +2,8 @@ package solver;
 
 import java.util.*;
 
+import javax.swing.plaf.TreeUI;
+
 // XY plane starts from the topmost left and starts at 0
 /*
  * example
@@ -35,8 +37,9 @@ public class SokoBot {
     BoardState initState = new BoardState(playerCoord, boxesCoord, goalsCoord, ' ', null);
     // String moves = BFS(mapData, initState);
     // String moves = Astar(mapData, initState, 'm');
-    String moves = Greedy(mapData, initState, 'm');
+    // String moves = Greedy(mapData, initState, 'm');
     // String moves = IDAstar(mapData, initState);
+    String moves = IDAstar2(mapData, initState);
     return moves;
   }
 
@@ -201,6 +204,65 @@ public class SokoBot {
     }
 
     System.out.println("No solution");
+    return "";
+  }
+
+  public String IDAstar2(char[][] mapData, BoardState initState) {
+    HashSet<BoardState> visited = new HashSet<>();
+    // hashmap for bestcost of a particular state
+    HashMap<BoardState, BoardState> bestCost = new HashMap<>();
+    Comparator<BoardState> comp = new ManhattanAstarComparator();
+    Queue<BoardState> frontier = new PriorityQueue<BoardState>(10, comp);
+    Queue<BoardState> outOfBoundFrontier = new PriorityQueue<BoardState>(10, comp);
+    int generated = 0;
+    int lowerBound = lowerBoundEstimate(initState);
+    int newLowerBound = 0;
+    frontier.add(initState);
+
+    while (!frontier.isEmpty() || !outOfBoundFrontier.isEmpty()) {
+      if (frontier.isEmpty()) {
+        lowerBound = newLowerBound;
+        frontier.addAll(outOfBoundFrontier);
+        outOfBoundFrontier.clear();
+      }
+
+      BoardState currState = frontier.remove();
+      if (currState.boxesIsOnGoal()) {
+        System.out.println("visited nodes: " + visited.size());
+        System.out.println("generated: " + generated);
+        return getSolution(currState);
+      }
+      visited.add(currState);
+      for (BoardState neighbor : getNeighbors(mapData, currState)) {
+        if (neighbor.getCost() > lowerBound) {
+          outOfBoundFrontier.add(neighbor);
+          newLowerBound = (neighbor.getCost()) * 10;
+          continue;
+        }
+
+        if (visited.contains(neighbor))
+          continue;
+
+        // if new move has a evaluation better than prevBest then replace it in the
+        // bestHashMap and frontier, otherwise dont put the new move in frontier
+        BoardState prevBest = bestCost.get(neighbor);
+        if (!neighbor.isDeadLock(mapData)) {
+          if (!bestCost.containsKey(neighbor) || neighbor.getCost()
+              + neighbor.getManhattanHeuristic() < prevBest.getCost() + prevBest.getManhattanHeuristic()) {
+            if (prevBest != null)
+              bestCost.remove(prevBest);
+            bestCost.put(neighbor, neighbor);
+            frontier.remove(prevBest);
+            frontier.add(neighbor);
+            generated++;
+          }
+
+        }
+
+      }
+    }
+
+    System.out.println("No solution found");
     return "";
   }
 
